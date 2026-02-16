@@ -40,15 +40,16 @@ Task: Algorithmic Foundations of Passive Radar & SoO Positioning (FY26)
 
 ---
 
-## Stage 2 – Signal Acquisition & Matched Filtering (CAF) ⏳
-Next steps:
-1. Implement CAF (delay x Doppler grid)
-2. Plot CAF heatmap
-3. Confirm peak equals injected (delay, doppler)
-4. Optimize with FFT-based method
+## Stage 2 – Signal Acquisition & Matched Filtering (CAF) ✅
 
----
+Implemented:
+- FFT-based Cross Ambiguity Function
+- Delay-Doppler heatmap visualization
+- Automatic peak detection
+- Ground truth validation with error reporting
+- PNG export for documentation
 
-## Notes
-- Development environment: radioconda (GNU Radio + Python)
-- Use PowerShell-safe args for negatives: `--f_start=-100e3`
+Validation:
+- CAF peak matches injected delay and Doppler
+- Verified numerically and visually
+- Example artifact saved in results/stage2_caf_validation.png
