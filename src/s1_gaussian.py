@@ -1,73 +1,64 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+Stage 1 Gaussian signal generator.
+
+Creates a synthetic reference/surveillance pair from Gaussian source data with
+configurable delay, Doppler, attenuation, and noise settings.
+"""
 
 import argparse
-import math
-import time
-import signal
 from pathlib import Path
-from gnuradio import gr, blocks, analog
 
-
-def snr_to_sigma(snr_db):
-    snr_linear = 10 ** (snr_db / 10)
-    return math.sqrt(1.0 / (2.0 * snr_linear))
-
-
-class S1Gaussian(gr.top_block):
-    def __init__(self, samp_rate, doppler, delay, attn, snr_db, seconds):
-
-        super().__init__("S1_Gaussian")
-
-        phase_inc = 2 * math.pi * doppler / samp_rate
-        sigma = snr_to_sigma(snr_db)
-
-        data_dir = Path("data")
-        data_dir.mkdir(exist_ok=True)
-
-        original_path = data_dir / "original_gaussian.c64"
-        reflected_path = data_dir / "reflected_gaussian.c64"
-
-        noise = analog.noise_source_c(analog.GR_GAUSSIAN, 1.0, 0)
-
-        delay_block = blocks.delay(gr.sizeof_gr_complex, delay)
-        rot = blocks.rotator_cc(phase_inc)
-        attn_block = blocks.multiply_const_cc(attn)
-        sigma_block = blocks.multiply_const_cc(sigma)
-
-        throttle = blocks.throttle(gr.sizeof_gr_complex, samp_rate, True)
-
-        sink_orig = blocks.file_sink(gr.sizeof_gr_complex, str(original_path), False)
-        sink_refl = blocks.file_sink(gr.sizeof_gr_complex, str(reflected_path), False)
-
-        self.connect(noise, throttle, sink_orig)
-
-        self.connect(noise, delay_block, rot, attn_block, sigma_block, sink_refl)
+from soo_foundations.soo_sim import generate_gaussian_pair, write_c64
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--samp_rate", type=float, default=1e6)
-    parser.add_argument("--doppler", type=float, default=50000)
-    parser.add_argument("--delay", type=int, default=1200)
-    parser.add_argument("--attn", type=float, default=0.9)
-    parser.add_argument("--snr_db", type=float, default=10)
-    parser.add_argument("--seconds", type=float, default=2)
+    # CLI entry for generating Gaussian-noise reference and reflected signal pair.
+    ap = argparse.ArgumentParser()
 
-    args = parser.parse_args()
+    # Sampling config determines total number of generated samples.
+    ap.add_argument("--samp_rate", type=float, default=1e6, help="Hz")
+    ap.add_argument("--seconds", type=float, default=2.0, help="duration (s)")
 
-    tb = S1Gaussian(
-        args.samp_rate,
-        args.doppler,
-        args.delay,
-        args.attn,
-        args.snr_db,
-        args.seconds
+    # Reflection model parameters used to synthesize the surveillance channel.
+    ap.add_argument("--delay", type=int, default=1200, help="samples")
+    ap.add_argument("--doppler", type=float, default=50e3, help="Hz")
+    ap.add_argument("--attn", type=float, default=0.9)
+    ap.add_argument("--snr_db", type=float, default=10.0)
+
+    # Seed controls reproducibility of the Gaussian source.
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--out_dir", type=str, default="data")
+    args = ap.parse_args()
+
+    # Convert time duration to integer sample count used by generator API.
+    n_samples = int(round(args.seconds * args.samp_rate))
+
+    # Ensure output location exists before writing raw complex files.
+    out_dir = Path(args.out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    # Build original complex Gaussian stream and processed reflected stream.
+    s_orig, s_ref = generate_gaussian_pair(
+        samp_rate=args.samp_rate,
+        n_samples=n_samples,
+        delay_samps=args.delay,
+        doppler_hz=args.doppler,
+        attn=args.attn,
+        snr_db=args.snr_db,
+        seed=args.seed,
     )
 
-    tb.start()
-    time.sleep(args.seconds)
-    tb.stop()
-    tb.wait()
+    # Save signals in interleaved complex64 format for the rest of the pipeline.
+    p_orig = out_dir / "original_gaussian.c64"
+    p_ref = out_dir / "reflected_gaussian.c64"
+    write_c64(p_orig, s_orig)
+    write_c64(p_ref, s_ref)
+
+    print(f"Wrote: {p_orig}  samples={len(s_orig)}")
+    print(f"Wrote: {p_ref}   samples={len(s_ref)}")
 
 
 if __name__ == "__main__":

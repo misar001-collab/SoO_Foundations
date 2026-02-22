@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soo-foundations"
+version = "0.1.0"
+description = "Signal of Opportunity foundations and validation tooling."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy",
+  "matplotlib",
+  "gnuradio",
+]
+
+[project.scripts]
+soo-s1-chirp = "s1_chirp:main"
+soo-s1-gaussian = "s1_gaussian:main"
+soo-s2-caf = "s2_caf:main"
+soo-plot-c64 = "plot_c64:main"
+soo-plot-s2-validation = "plot_s2_validation:main"
+soo-plot-all-stages = "plot_all_stages_report:main"
+soo-s3-measurements = "s3_measurements:main"
+soo-s3-positioning-demo = "s3_positioning_demo:main"
+soo-s3-monte-carlo-eval = "s3_monte_carlo_eval:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+py-modules = ["s1_chirp", "s1_gaussian", "s2_caf", "plot_c64", "plot_s2_validation", "plot_all_stages_report", "s3_measurements", "s3_positioning_demo", "s3_monte_carlo_eval"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["soo_foundations*"]
